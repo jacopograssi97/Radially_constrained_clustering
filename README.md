@@ -1,1 +1,1 @@
-# Radially_constrained_clustering
+# Radially constrained clustering
