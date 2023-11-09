@@ -91,39 +91,41 @@ class Radially_Constrained_Cluster(object):
         error_list = []
         learningrate_list = []
         
-
         # Main loop
         for j in range(self.n_iter):
 
             # Generating random starting breackpoints - equally distributed over time (firt iteration)
             if j == 0:
-                upgrade, b = self.generate_starting_bpoints()
+                b = self.generate_starting_bpoints()
 
             # Randomly upgrading breakpoints in the range breakpoint +- learning rate (other iteration)
             else:
-                upgrade, b = self.upgrade_breakpoints(b)
+                b = self.upgrade_breakpoints(b)
+
+            breakpoint_list.append(b)
 
             # Generating index for each season
             idx = generate_season_idx(self.n_seas, b, self.len_serie)
 
+            # Computing metrics & centroids
+            centroids, error = compute_metrics(self.n_seas, self.data_to_cluster, idx)
+
             # Control on min season length - if false is skipped
             len_ok = check_season_len(self.n_seas, idx, self.min_len)
-
+            
             # Case all season lengths are ok -> computing metrics
             if len_ok == True:
+                
                 centroids, error = compute_metrics(self.n_seas, self.data_to_cluster, idx)
-
-                breakpoint_list.append(b)
                 centroid_list.append(centroids)
                 error_list.append(np.sum(error))
-                learningrate_list.append(self.learning_rate)
 
                 # Skipping first iteration
                 if j > 0:
                     # Checking if the breakpoints upgrade has improved the metrics
                     if error_list[j]>error_list[j-1]:
                         # If not downgrade breakpoints on last iteration
-                        b = downgrade_breakpoints(self.n_seas, b, upgrade, self.len_serie)
+                        b = breakpoint_list[j-1]
 
                     # Scheduling learning rate for best minimun localization
                     elif (error_list[j-1] - error_list[j-2]) < 0 and self.scheduling_factor > 1 and self.learning_rate > 1:
@@ -132,9 +134,14 @@ class Radially_Constrained_Cluster(object):
             # If there are too short seasons just pretend like nothing happend
             # Downgrading breakpoints to previous iteration
             else:
-                b = downgrade_breakpoints(self.n_seas, b, upgrade, self.len_serie)
+                b = breakpoint_list[j-1]
                 idx = generate_season_idx(self.n_seas, b, self.len_serie)
                 centroids, error = compute_metrics(self.n_seas, self.data_to_cluster, idx)
+                centroid_list.append(centroids)
+                error_list.append(np.sum(error))
+
+            learningrate_list.append(self.learning_rate)
+
 
 
 
@@ -162,7 +169,7 @@ class Radially_Constrained_Cluster(object):
 
                 new_b[k]=self.len_serie-1+new_b[k]
 
-        return upgrade, np.array(new_b)
+        return np.array(new_b)
 
     
 
@@ -174,7 +181,6 @@ class Radially_Constrained_Cluster(object):
         '''
 
         b_start = []
-        upgrade = []
 
         # Core of breakpoints generation
         for i in range(self.n_seas):
@@ -183,19 +189,17 @@ class Radially_Constrained_Cluster(object):
             if i == 0:
 
                 b_start.append(int((self.len_serie-1)/self.n_seas))
-                upgrade.append(0)
 
             else:
             
                 b_start.append(b_start[i-1]+int((self.len_serie-1)/self.n_seas))
-                upgrade.append(0)
 
             if b_start[i] > self.len_serie-1:
                 b_start[i] = b_start[i]-self.len_serie-1
 
         b_start = np.sort(b_start)
 
-        return upgrade, b_start
+        return b_start
 
 
 
@@ -250,17 +254,10 @@ def generate_season_idx(n_season, b, len_serie):
 
     idx = []
 
-
     if n_season == 1:
-
         idx.append(np.arange(0, len_serie, 1))
 
-    
-
     else:
-
-
-
         for i in np.arange(-1, n_season-1,1):
 
             if b[i]>b[i+1]:
@@ -268,12 +265,9 @@ def generate_season_idx(n_season, b, len_serie):
                 idx_0 = np.arange(b[i], len_serie, 1)
                 idx_1 = np.arange(0, b[i+1], 1)
                 idx.append(np.concatenate((idx_0, idx_1), axis=None))
-            
-
+        
             else:
- 
                 idx.append(np.arange(b[i], b[i+1],1))
-
 
     return idx
 
@@ -294,23 +288,6 @@ def compute_metrics(n_season, data_to_cluster, idx):
 
 
 
-def downgrade_breakpoints(n_season, new_b, upgrade, len_serie):
-
-    old_b = []
-
-    for k in range(n_season):
-
-        old_b.append(new_b[k]-upgrade[k])
-
-        if old_b[k]>len_serie-1:
-
-            old_b[k]=old_b[k]-len_serie-1
-
-        if old_b[k]<0:
-
-            old_b[k]=len_serie-1+old_b[k]
-
-    return np.array(old_b)
 
 
 
