@@ -102,13 +102,11 @@ class Radially_Constrained_Cluster(object):
             else:
                 b = self.upgrade_breakpoints(b)
 
+            # Appending breakpoints to list
             breakpoint_list.append(b)
 
             # Generating index for each season
             idx = generate_season_idx(self.n_seas, b, self.len_serie)
-
-            # Computing metrics & centroids
-            centroids, error = compute_metrics(self.n_seas, self.data_to_cluster, idx)
 
             # Control on min season length - if false is skipped
             len_ok = check_season_len(self.n_seas, idx, self.min_len)
@@ -120,25 +118,26 @@ class Radially_Constrained_Cluster(object):
                 centroid_list.append(centroids)
                 error_list.append(np.sum(error))
 
-                # Skipping first iteration
-                if j > 0:
-                    # Checking if the breakpoints upgrade has improved the metrics
-                    if error_list[j]>error_list[j-1]:
-                        # If not downgrade breakpoints on last iteration
-                        b = breakpoint_list[j-1]
+                try:
+                    # Skipping first iteration
+                    if j > 0:
+                        # Checking if the breakpoints upgrade has improved the metrics
+                        if error_list[j]>error_list[j-1]:
+                            # If not downgrade breakpoints on last iteration
+                            b = breakpoint_list[-2]
 
-                    # Scheduling learning rate for best minimun localization
-                    elif (error_list[j-1] - error_list[j-2]) < 0 and self.scheduling_factor > 1 and self.learning_rate > 1:
-                        self.learning_rate = schedule_learning_rate(self.learning_rate, self.scheduling_factor)
+                        # Scheduling learning rate for best minimun localization
+                        elif (error_list[j-1] - error_list[j-2]) < 0 and self.scheduling_factor > 1 and self.learning_rate > 1:
+                            self.learning_rate = schedule_learning_rate(self.learning_rate, self.scheduling_factor)
+                
+                except:
+                    pass
 
             # If there are too short seasons just pretend like nothing happend
             # Downgrading breakpoints to previous iteration
             else:
-                b = breakpoint_list[j-1]
-                idx = generate_season_idx(self.n_seas, b, self.len_serie)
-                centroids, error = compute_metrics(self.n_seas, self.data_to_cluster, idx)
-                centroid_list.append(centroids)
-                error_list.append(np.sum(error))
+                b = breakpoint_list[-2]
+
 
             learningrate_list.append(self.learning_rate)
 
