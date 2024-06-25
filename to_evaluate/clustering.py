@@ -1,4 +1,4 @@
-from radial_constrained_cluster_copy import *
+from radial_constrained_cluster import *
 
 
 import numpy as np
