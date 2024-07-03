@@ -633,7 +633,7 @@ random.setstate((3,
 
 class Radially_Constrained_Cluster(object):
 
-    def __init__(self, data_to_cluster, n_seas, n_iter = 1000, learning_rate = 1, scheduling_factor = 1, min_len = 1, mode = 'single', n_ensemble = 1000, s_factor = 0.1):
+    def __init__(self, data_to_cluster, n_seas, n_iter = 1000, learning_rate = 1, scheduling_factor = 1, min_len = 1, mode = 'single', n_ensemble = 1000, s_factor = 0.1, starting_bp=None):
 
         '''
             Mandatory parameters:
@@ -656,6 +656,8 @@ class Radially_Constrained_Cluster(object):
         # Establishing the len of the serie
         self.len_serie = np.size(data_to_cluster,axis=0)
         self.data_to_cluster = data_to_cluster
+
+        self.starting_bp = starting_bp
 
         # Check parameter consistancy
         if self.len_serie/n_seas < min_len:
@@ -727,7 +729,13 @@ class Radially_Constrained_Cluster(object):
 
             # Generating random starting breakpoints - equally distributed over time (firt iteration)
             if j == 0:
-                upgrade, b = self.generate_starting_bpoints()
+
+                if self.starting_bp is None:
+                    upgrade, b = self.generate_starting_bpoints()
+                
+                else:
+                    upgrade = 0
+                    b = self.starting_bp
 
             # Randomly upgrading breakpoints in the range breakpoint +- learning rate (other iteration)
             else:
@@ -761,9 +769,9 @@ class Radially_Constrained_Cluster(object):
                         # If not downgrade breakpoints on last iteration
                         b = downgrade_breakpoints(self.n_seas, b, upgrade, self.len_serie)
 
-                    # # Scheduling learning rate for best minimun localization
-                    # elif (error_list[-1] - error_list[-2]) < 0 and self.scheduling_factor > 1 and self.learning_rate > 1:
-                    #     self.learning_rate = schedule_learning_rate(self.learning_rate, self.scheduling_factor)
+                    # Scheduling learning rate for best minimun localization
+                    elif (error_list[-1] - error_list[-2]) < 0 and self.scheduling_factor > 1 and self.learning_rate > 1:
+                        self.learning_rate = schedule_learning_rate(self.learning_rate, self.scheduling_factor)
 
             # If there are too short seasons just pretend like nothing happend
             # Downgrading breakpoints to previous iteration
